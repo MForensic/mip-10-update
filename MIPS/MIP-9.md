@@ -14,7 +14,7 @@ created: 2026-03-19
 
 This MIP proposes an increase to the maximum active validator set from 200 to 250.
 
-The current active validator set is capped at 200. As the Monad network matures and demand from qualified validators grows, this cap increasingly limits the network's degree of decentralization and geographic distribution of active stake. Raising the cap expands participation without introducing abrupt load changes to the consensus layer (MonadBFT) or execution pipeline.
+The current active validator set is capped at 200. Raising the cap expands participation without introducing abrupt load changes to the consensus layer (MonadBFT) or execution pipeline.
 
 ## Specification
 
