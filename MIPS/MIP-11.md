@@ -2,7 +2,7 @@
 mip: 11
 title: Automatic Priority Fee Distribution
 description: Automatically distribute priority fees to delegators.
-author: <your-name-here>
+author: Category Labs
 discussions-to: <forum-link-or-thread>
 status: Draft
 type: Standards Track
@@ -44,7 +44,7 @@ The distribution account will have the following logic.
 ```
 Class distribution_account: 
     
-	# only system can call this function
+	# This function is only callable via execution. No transaction can call. 
 	def syscall_distribute(address block_leader):
 	    priority_fees = get_balance(address(this))
 	    
