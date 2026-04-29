@@ -83,7 +83,7 @@ The seed is deterministically recomputed from the values given in the chunk head
 
 ## Rationale
 
-Deterministic RaptorCast requires minimal changes to the existing RaptorCast infrastructure. The encoding scheme, Merkle commitments, chunk delivery, and rebroadcast all remain unchanged. The additions are: a canonical seed derived from existing proposal metadata, per-round equivocation detection at each validator. These changes are sufficient to close both attack surfaces and to make voting on the Merkle root commitment safe before decoding, with no changes to the consensus voting protocol, the quorum certificate format, or the execution layer.
+Deterministic RaptorCast requires minimal changes to the existing RaptorCast infrastructure. The encoding scheme, Merkle commitments, chunk delivery, and rebroadcast all remain unchanged. The additions are: a canonical seed (also called encoding seed) derived from existing proposal metadata, per-round equivocation detection at each validator. These changes are sufficient to close both attack surfaces and to make voting on the Merkle root commitment safe before decoding, with no changes to the consensus voting protocol, the quorum certificate format, or the execution layer.
 
 ## Security Considerations
 
