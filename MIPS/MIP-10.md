@@ -3,7 +3,7 @@ mip: 10
 title: Deterministic RaptorCast 
 description: Introduces a canonical encoding scheme for RaptorCast that closes asymmetric liveness and equivocation attack surfaces and reduces dissemination latency.
 author: Category Labs
-discussions-to: https://forum.monad.xyz
+discussions-to: https://forum.monad.xyz/t/mip-10-deterministic-raptorcast/453
 status: Draft
 type: Standards Track
 category: Core
