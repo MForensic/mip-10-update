@@ -1,7 +1,7 @@
 ---
 mip: 10
 title: Deterministic RaptorCast 
-description: Introduces a canonical encoding scheme for RaptorCast that closes asymmetric liveness and equivocation attack surfaces and reduces dissemination latency.
+description: Introduces a canonical encoding scheme for RaptorCast that closes asymmetric liveness and equivocation attack surfaces and reduces dissemination latency
 author: Category Labs
 discussions-to: https://forum.monad.xyz/t/mip-10-deterministic-raptorcast/453
 status: Draft
@@ -12,7 +12,7 @@ created: 2026-04-28
 
 ## Abstract
 
-This MIP proposes Deterministic RaptorCast (v1), a new broadcast mode for the RaptorCast dissemination layer that fixes the Raptor encoding via a publicly derivable seed and enforces per-round equivocation detection by recording the first valid (Merkle root, leader signature) pair seen for each round, referred to as an EncodingCommitment. The change delivers three benefits: (1) it can enable validators to vote directly on the Merkle root commitment upon receiving a verified chunk without decoding, saving one message delay on the critical path; (2) it closes asymmetric liveness attacks in which a Byzantine leader selectively withholds singleton Encoding Symbol Identifiers (ESIs) from targeted validators, causing reconstruction delays of several hundred milliseconds; and (3) it closes mixed-commitment equivocation, in which a leader constructs a single Merkle root from chunks encoding multiple distinct payloads. Note that benefit (3) is contingent on the consensus protocol being revised to vote on the Merkle root commitment rather than the decoded payload; without that change, the equivocation attack surface does not arise in the first place.
+This MIP proposes Deterministic RaptorCast (v1), a new broadcast mode for the RaptorCast dissemination layer that fixes the Raptor encoding via a publicly derivable seed and enforces per-round equivocation detection by recording the first valid (Merkle root, leader signature) pair seen for each round, referred to as an ``EncodingCommitment``. The change delivers three benefits: (1) it can enable validators to vote directly on the Merkle root commitment upon receiving a verified chunk without decoding, saving one message delay on the critical path; (2) it closes asymmetric liveness attacks in which a Byzantine leader selectively withholds singleton Encoding Symbol Identifiers (ESIs) from targeted validators, causing reconstruction delays of several hundred milliseconds; and (3) it closes mixed-commitment equivocation, in which a leader constructs a single Merkle root from chunks encoding multiple distinct payloads. Note that benefit (3) is contingent on the consensus protocol being revised to vote on the Merkle root commitment rather than the decoded payload; without that change, the equivocation attack surface does not arise in the first place.
 
 ## Motivation
 
@@ -24,27 +24,12 @@ MonadBFT uses RaptorCast to disseminate block proposals across the validator set
 
 - **Attack 2: Mixed-commitment equivocation** Lowering the latency by voting on the merkle root of encoded chunks involves decode-re-encode consistency check to make sure encoding is valid. Without a fixed ESI-to-position mapping, the decode-re-encode consistency check cannot be correctly defined for rateless codes. A leader can construct a single Merkle root whose leaves are drawn from encodings of multiple distinct payloads. Every chunk passes Merkle verification, but validators collecting different subsets decode to different payloads. If validators vote on the root without decoding, they believe they are certifying the same block while certifying different ones.
 
-## Properties
-
-Deterministic RaptorCast satisfies the following three properties.
-
-- **Availability** If a Quorum Certificate for a Merkle root`R` exists, every correct validator eventually terminates.
-
-- **Integrity** If the leader is correct, every correct validator that decodes a payload recovers exactly the payload originally dispersed by the leader.
-
-- **Consistency** Any two correct validators that decode a payload from chunks consistent with `R` recover the same payload. If no valid payload is consistent with `R`, every correct validator returns `⊥`.
-
-Consistency is what makes voting on `R` safe prior to decoding. A validator that casts a vote on `R` implicitly vouches for a unique payload: consistency guarantees that every validator that subsequently decodes arrives at the same one. Absent this property, two validators could vote on the same `R` while holding chunks that decode to different payloads, violating consensus safety.
-
-The canonical seed also unlocks a post-consensus validity gate at the execution layer that was not previously applicable. Because the decode-re-encode check produces the same result at every correct validator, it can be applied after consensus has decided a block: any block whose decoded payload fails the check will be independently rejected by every correct validator, with no risk of a split. Under v0 this gate could not be employed without a canonical seed; different validators re-encoding the same payload could produce different roots and reach different conclusions about the same block.
-
-This is enforced by two complementary mechanisms. First, per-round equivocation detection: upon receiving the first valid v1 chunk for a round, each validator records an EncodingCommitment — the pair (global_merkle_root, signature) — and rejects any subsequent chunk for that round with different fields. Second, the canonical seed fixes the ESI-to-position mapping, making the decode-re-encode check well-defined: re-encoding any decoded payload under the public seed always produces the same chunk set that can be validated against the same EncodingCommitment.
 
 ## Specification
 
 ### Seed Derivation
 
-The encoding seed is computed by the leader at proposal time. It consists of the hash of (round number, leader identity, and proposal time). The chunk header contains all necessary data for validators to deterministically recompute this seed, which they do upon receiving the chunk. Validators also check that the proposal time falls within an acceptable range of their local clock before accepting the seed as valid.
+The canonical seed (also called encoding seed) is computed by the leader at proposal time. It consists of the hash of (round number, leader identity, and proposal time). The chunk header contains all necessary data for validators to deterministically recompute this seed, which they do upon receiving the chunk. Validators also check that the proposal time falls within an acceptable range of their local clock before accepting the seed as valid.
 
 ### Encoding
 
@@ -55,7 +40,7 @@ The leader encodes payload `B` as:
 R               = MerkleRoot(c_1, ..., c_n)
 ```
 
-Position `i` MUST contain the chunk generated with `ESI = i` under seed. The pair `(R, σ)` where `σ = Sign(round, timestamp, R)` is the EncodingCommitment for this proposal.
+Position `i` MUST contain the chunk generated with `ESI = i` under seed. The pair `(R, σ)` where `σ = Sign(round, timestamp, R)` is the ``EncodingCommitment`` for this proposal.
 
 ### Chunk Validation
 
@@ -79,11 +64,27 @@ After collecting sufficient chunks and decoding payload B, a validator MUST veri
 MerkleRoot(RaptorEnc(B, seed)) == R
 ```
 
-The seed is deterministically recomputed from the values given in the chunk header. If the above check fails, the payload is rejected. This check is well-defined under v1 because seed fixes the ESI-to-position mapping: re-encoding `B` always produces the same chunk set that can be validated against the recorded EncodingCommitment. Under v0 this check cannot be reliably applied.
+The seed is deterministically recomputed from the values given in the chunk header. If the above check fails, the payload is rejected. This check is well-defined under v1 because seed fixes the ESI-to-position mapping: re-encoding `B` always produces the same chunk set that can be validated against the recorded ``EncodingCommitment``. Under v0 this check cannot be reliably applied.
 
 ## Rationale
 
-Deterministic RaptorCast requires minimal changes to the existing RaptorCast infrastructure. The encoding scheme, Merkle commitments, chunk delivery, and rebroadcast all remain unchanged. The additions are: a canonical seed (also called encoding seed) derived from existing proposal metadata, per-round equivocation detection at each validator. These changes are sufficient to close both attack surfaces and to make voting on the Merkle root commitment safe before decoding, with no changes to the consensus voting protocol, the quorum certificate format, or the execution layer.
+Deterministic RaptorCast requires minimal changes to the existing RaptorCast infrastructure. The encoding scheme, Merkle commitments, chunk delivery, and rebroadcast all remain unchanged. The additions are: a canonical seed derived from existing proposal metadata, per-round equivocation detection at each validator. These changes are sufficient to close both attack surfaces and to make voting on the Merkle root commitment safe before decoding, with no changes to the consensus voting protocol, the quorum certificate format, or the execution layer. The resulting protocol satisfies the following properties.
+
+### Properties
+
+Deterministic RaptorCast satisfies the following three properties.
+
+- **Availability** If a Quorum Certificate for a Merkle root`R` exists, every correct validator eventually terminates.
+
+- **Integrity** If the leader is correct, every correct validator that decodes a payload recovers exactly the payload originally dispersed by the leader.
+
+- **Consistency** Any two correct validators that decode a payload from chunks consistent with `R` recover the same payload. If no valid payload is consistent with `R`, every correct validator returns `⊥`.
+
+Consistency is what makes voting on `R` safe prior to decoding. A validator that casts a vote on `R` implicitly vouches for a unique payload: consistency guarantees that every validator that subsequently decodes arrives at the same one. Absent this property, two validators could vote on the same `R` while holding chunks that decode to different payloads, violating consensus safety.
+
+The canonical seed also unlocks a post-consensus validity gate at the execution layer that was not previously applicable. Because the decode-re-encode check produces the same result at every correct validator, it can be applied after consensus has decided a block: any block whose decoded payload fails the check will be independently rejected by every correct validator, with no risk of a split. Under v0 this gate could not be employed without a canonical seed; different validators re-encoding the same payload could produce different roots and reach different conclusions about the same block.
+
+This is enforced by two complementary mechanisms. First, per-round equivocation detection: upon receiving the first valid v1 chunk for a round, each validator records an ``EncodingCommitment`` — the pair (global_merkle_root, signature) — and rejects any subsequent chunk for that round with different fields. Second, the canonical seed fixes the ESI-to-position mapping, making the decode-re-encode check well-defined: re-encoding any decoded payload under the public seed always produces the same chunk set that can be validated against the same ``EncodingCommitment``.
 
 ## Security Considerations
 
