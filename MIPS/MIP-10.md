@@ -16,11 +16,11 @@ This MIP proposes Deterministic RaptorCast (v1), a new broadcast mode for the Ra
 
 ## Motivation
 
-MonadBFT uses RaptorCast to disseminate block proposals across the validator set. The current protocol (v0) places no constraint on which ESI the leader assigns to which position in the Merkle tree, nor on which ESIs are delivered to which validator. This delivery freedom has three consequences that Deterministic RaptorCast addresses.
+MonadBFT uses RaptorCast to disseminate block proposals across the validator set. The current protocol (v0) (see [RaptorCast: Designing a Messaging Layer](https://www.category.xyz/blogs/raptorcast-designing-a-messaging-layer)) places no constraint on which ESI the leader assigns to which position in the Merkle tree, nor on which ESIs are delivered to which validator. This delivery freedom has three consequences that Deterministic RaptorCast addresses.
 
 - **Latency** A natural optimization is to overlap block propagation with consensus voting. Rather than waiting to fully reconstruct a block before casting a vote, a validator that receives a chunk and can verify it against the block's Merkle root could vote immediately—saving one message delay on the consensus critical path. Under v0, however, this is unsafe. Because the leader has freedom over ESI assignment, the same Merkle root can be consistent with multiple distinct payloads; a vote on the root therefore does not unambiguously certify a single block. A canonical (deterministic) encoding removes this ambiguity: since the Merkle root now commits to exactly one possible payload, opening the opportunity for validators to vote on the root as soon as they receive a verified chunk.
 
-- **Attack 1: Asymmetric liveness** Raptor codes decode most efficiently when the decoder receives at least some degree-1 (singleton) ESIs, since these are the entry point for the Belief Propagation peeling decoder. Without any singletons the decoder stalls immediately and must fall back to Gaussian elimination, which is substantially more expensive. A Byzantine leader can exploit v0's delivery freedom to selectively deprive targeted validators of singletons while supplying adversarially chosen high-degree repair chunks that maximize Gaussian elimination cost. The result is that targeted validators reconstruct upto several hundred milliseconds later (depending on the number of source symbols) than the rest of the set which is enough of a delay to starve them of votes in the current view. This gives the leader discretion to force future view failures.
+- **Attack 1: Asymmetric liveness** Raptor codes decode most efficiently when the decoder receives at least some degree-1 ([singleton](https://www.category.xyz/blogs/raptorcast-designing-a-messaging-layer#2-encoding-system)) ESIs, since these are the entry point for the Belief Propagation peeling decoder. Without any singletons the decoder stalls immediately and must fall back to Gaussian elimination, which is substantially more expensive. A Byzantine leader can exploit v0's delivery freedom to selectively deprive targeted validators of singletons while supplying adversarially chosen high-degree repair chunks that maximize Gaussian elimination cost. The result is that targeted validators reconstruct upto several hundred milliseconds later (depending on the number of source symbols) than the rest of the set which is enough of a delay to starve them of votes in the current view. This gives the leader discretion to force future view failures.
 
 - **Attack 2: Mixed-commitment equivocation** Lowering the latency by voting on the merkle root of encoded chunks involves decode-re-encode consistency check to make sure encoding is valid. Without a fixed ESI-to-position mapping, the decode-re-encode consistency check cannot be correctly defined for rateless codes. A leader can construct a single Merkle root whose leaves are drawn from encodings of multiple distinct payloads. Every chunk passes Merkle verification, but validators collecting different subsets decode to different payloads. If validators vote on the root without decoding, they believe they are certifying the same block while certifying different ones.
 
@@ -39,6 +39,8 @@ The leader encodes payload `B` as:
 (c_1, ..., c_n) = RaptorEnc(B, seed)
 R               = MerkleRoot(c_1, ..., c_n)
 ```
+
+In v0, chunks were organized into multiple Merkle trees of `32` chunks each, with each tree independently signed by the leader. v1 replaces this with a single global Merkle root `R` computed over all `n` chunks, providing a unified commitment that binds every chunk to a single canonical encoding of the proposal.
 
 Position `i` MUST contain the chunk generated with `ESI = i` under seed. The pair `(R, σ)` where `σ = Sign(round, timestamp, R)` is the ``EncodingCommitment`` for this proposal.
 
@@ -74,7 +76,7 @@ Deterministic RaptorCast requires minimal changes to the existing RaptorCast inf
 
 Deterministic RaptorCast satisfies the following three properties.
 
-- **Availability** If a Quorum Certificate for a Merkle root`R` exists, every correct validator eventually terminates.
+- **Availability** If a Quorum Certificate for a Merkle root `R` exists, every correct validator eventually terminates.
 
 - **Integrity** If the leader is correct, every correct validator that decodes a payload recovers exactly the payload originally dispersed by the leader.
 
