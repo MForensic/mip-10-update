@@ -40,7 +40,10 @@ The leader encodes payload `B` as:
 R               = MerkleRoot(c_1, ..., c_n)
 ```
 
-In v0, chunks were organized into multiple Merkle trees of `32` chunks each, with each tree independently signed by the leader. v1 replaces this with a single global Merkle root `R` computed over all `n` chunks, providing a unified commitment that binds every chunk to a single canonical encoding of the proposal.
+In v0, chunks were organized into multiple Merkle trees of `32` chunks each, with each tree independently signed by the leader. v1 replaces this with a 
+single global Merkle root `R` computed over all `n` chunks, providing a unified commitment that binds every chunk to a single canonical encoding of 
+the proposal. The Merkle tree depth is dynamically calculated based on the  number of chunks, up to a maximum depth of 15. Each Merkle proof is 
+`20 × (merkle_tree_depth - 1)` bytes, giving a worst-case proof size of `280` bytes compared to `100` bytes in v0.
 
 Position `i` MUST contain the chunk generated with `ESI = i` under seed. The pair `(R, σ)` where `σ = Sign(round, timestamp, R)` is the ``EncodingCommitment`` for this proposal.
 
